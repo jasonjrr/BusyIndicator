@@ -10,18 +10,18 @@ import SwiftUI
 public struct BusyView<Content>: View where Content : View {
     @Environment(\.busyIndicator) var busyIndicator: BusyIndicator
     
-    private let content: (Bool) -> Content
+    private let content: () -> Content
     
     @State private var isBusy: Bool = false
     
-    init(@ViewBuilder content: @escaping (Bool) -> Content) {
+    init(@ViewBuilder content: @escaping () -> Content) {
         self.content = content
     }
     
     public var body: some View {
         ZStack(alignment: .center) {
             Color.clear.zIndex(0.0)
-            self.content(self.isBusy)
+            self.content()
         }
         .allowsHitTesting(self.isBusy)
         .onReceive(self.busyIndicator.busy.receive(on: DispatchQueue.main)) { isBusy in
@@ -65,20 +65,20 @@ extension View {
     ///     abutting a safe area listed in `regions`.
     ///
     /// - Returns: A view that layers `overlay` in front of the view.
-    public func busyOverlay<Content>(_ isBusy: Bool, edgesIgnoringSafeArea edges: Edge.Set = .all, @ViewBuilder content: @escaping (Bool) -> Content) -> some View where Content : View {
+    public func busyOverlay<Content>(_ isBusy: Bool, edgesIgnoringSafeArea edges: Edge.Set = .all, @ViewBuilder content: @escaping () -> Content) -> some View where Content : View {
         self.overlay(
-            BusyView { isBusy in
-                content(isBusy)
+            BusyView {
+                content()
             }
             .environment(\.busyIndicator, .constant(isBusy))
             .edgesIgnoringSafeArea(edges)
         )
     }
     
-    public func busyOverlay<Content>(edgesIgnoringSafeArea edges: Edge.Set = .all, @ViewBuilder content: @escaping (Bool) -> Content) -> some View where Content : View {
+    public func busyOverlay<Content>(edgesIgnoringSafeArea edges: Edge.Set = .all, @ViewBuilder content: @escaping () -> Content) -> some View where Content : View {
         self.overlay(
-            BusyView { isBusy in
-                content(isBusy)
+            BusyView {
+                content()
             }
             .edgesIgnoringSafeArea(edges)
         )
@@ -87,20 +87,30 @@ extension View {
 
 extension View {
     public func busyOverlay(_ isBusy: Bool, edgesIgnoringSafeArea edges: Edge.Set = .all) -> some View {
-        self.busyOverlay(isBusy, edgesIgnoringSafeArea: edges) { isBusy in
-            if isBusy {
-                ProgressView()
-                    .transition(.opacity.animation(.easeInOut))
-            }
+        self.busyOverlay(isBusy, edgesIgnoringSafeArea: edges) {
+            DefaultProgressView()
         }
     }
     
     public func busyOverlay(edgesIgnoringSafeArea edges: Edge.Set = .all) -> some View {
-        self.busyOverlay(edgesIgnoringSafeArea: edges) { isBusy in
-            if isBusy {
+        self.busyOverlay(edgesIgnoringSafeArea: edges) {
+            DefaultProgressView()
+        }
+    }
+}
+
+private struct DefaultProgressView: View {
+    @Environment(\.busyIndicator) var busyIndicator: BusyIndicator
+    @State private var isBusy: Bool = false
+    var body: some View {
+        ZStack {
+            if self.isBusy {
                 ProgressView()
                     .transition(.opacity.animation(.easeInOut))
             }
+        }
+        .onReceive(self.busyIndicator.busy.receive(on: DispatchQueue.main)) { isBusy in
+            self.isBusy = isBusy
         }
     }
 }
