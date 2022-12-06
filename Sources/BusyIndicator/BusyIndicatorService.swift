@@ -15,27 +15,13 @@ public protocol BusyIndicatorServiceProtocol: AnyObject {
     func enqueue() -> BusySubject
 }
 
-class BusyIndicatorService: BusyIndicatorServiceProtocol {
-    private var _queue: CurrentValueSubject<Int, Never> = CurrentValueSubject(0)
-    var queue: AnyPublisher<Int, Never> { self._queue.eraseToAnyPublisher() }
+public class BusyIndicatorService: BusyIndicatorServiceProtocol {
+    let congifuration: BusyIndicatorConfiguration
     
-    private let busyValueSubject: CurrentValueSubject<Bool, Never> = CurrentValueSubject(false)
-    private(set) lazy var busyIndicator: BusyIndicator = BusyIndicator(
-        busy: self._queue
-            .map { queue -> AnyPublisher<Bool, Never> in
-                if queue == 0 {
-                    return Just(false).eraseToAnyPublisher()
-                } else {
-                    return Just(true)
-                        .delay(for: 0.85, scheduler: DispatchQueue.global(qos: DispatchQoS.QoSClass.userInteractive))
-                        .eraseToAnyPublisher()
-                }
-            }
-            .switchToLatest()
-            .removeDuplicates()
-            .multicast(subject: self.busyValueSubject)
-            .eraseToAnyPublisher()
-    )
+    private var _queue: CurrentValueSubject<Int, Never> = CurrentValueSubject(0)
+    public var queue: AnyPublisher<Int, Never> { self._queue.eraseToAnyPublisher() }
+
+    public private(set) lazy var busyIndicator: BusyIndicator = BusyIndicator(busy: getIsBusyPublisher())
     
     private let queueDispatchQueue: DispatchQueue = DispatchQueue(label: "BusyIndicatorService-\(UUID().uuidString)")
     private let _enqueue: PassthroughSubject<Void, Never> = PassthroughSubject()
@@ -43,7 +29,8 @@ class BusyIndicatorService: BusyIndicatorServiceProtocol {
     
     private var cancelBag = Set<AnyCancellable>()
     
-    init() {
+    public init(configuration: BusyIndicatorConfiguration = BusyIndicatorConfiguration()) {
+        self.congifuration = configuration
         bind()
     }
     
@@ -52,20 +39,45 @@ class BusyIndicatorService: BusyIndicatorServiceProtocol {
         
         self._enqueue
             .receive(on: self.queueDispatchQueue)
-            .map { queue.value + 1 }
-            .sink(receiveValue: { queue.send($0) })
+            .withLatestFrom(queue)
+            .map { $0 + 1 }
+            .sink(receiveValue: {
+                queue.send($0)
+            })
             .store(in: &self.cancelBag)
 
         self._dequeue
             .receive(on: self.queueDispatchQueue)
-            .map { max(0, queue.value - 1) }
-            .sink(receiveValue: { queue.send($0) })
+            .withLatestFrom(queue)
+            .map { max(0, $0 - 1) }
+            .sink(receiveValue: {
+                queue.send($0)
+            })
             .store(in: &self.cancelBag)
     }
     
-    func enqueue() -> BusySubject {
+    public func enqueue() -> BusySubject {
         self._enqueue.send()
         return BusySubject(delegate: self)
+    }
+    
+    private func getIsBusyPublisher() -> AnyPublisher<Bool, Never> {
+        let dispatchQueue = self.queueDispatchQueue
+        let config = self.congifuration
+        return self._queue
+            .receive(on: dispatchQueue)
+            .flatMapLatest { queue -> AnyPublisher<Bool, Never> in
+                if queue == 0 {
+                    return Just(false).eraseToAnyPublisher()
+                } else {
+                    return Just(true)
+                        .delay(for: .milliseconds(config.showBusyIndicatorDelay), scheduler: RunLoop.main)
+                        .receive(on: dispatchQueue)
+                        .eraseToAnyPublisher()
+                }
+            }
+            .removeDuplicates()
+            .eraseToAnyPublisher()
     }
 }
 
