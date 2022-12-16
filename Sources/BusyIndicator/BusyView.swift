@@ -21,7 +21,9 @@ public struct BusyView<Content>: View where Content : View {
     public var body: some View {
         ZStack(alignment: .center) {
             Color.clear.zIndex(0.0)
-            self.content()
+            if self.isBusy {
+                self.content()
+            }
         }
         .allowsHitTesting(self.isBusy)
         .onReceive(self.busyIndicator.busy.receive(on: DispatchQueue.main)) { isBusy in
@@ -100,17 +102,18 @@ extension View {
 }
 
 private struct DefaultProgressView: View {
-    @Environment(\.busyIndicator) var busyIndicator: BusyIndicator
-    @State private var isBusy: Bool = false
     var body: some View {
-        ZStack {
-            if self.isBusy {
+        if #available(iOS 15.0, *) {
+            ZStack {
                 ProgressView()
-                    .transition(.opacity.animation(.easeInOut))
             }
-        }
-        .onReceive(self.busyIndicator.busy.receive(on: DispatchQueue.main)) { isBusy in
-            self.isBusy = isBusy
+            .background(.ultraThinMaterial)
+            .transition(.opacity.animation(.easeInOut))
+        } else {
+            ZStack {
+                ProgressView()
+            }
+            .transition(.opacity.animation(.easeInOut))
         }
     }
 }

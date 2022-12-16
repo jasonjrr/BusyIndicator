@@ -1,9 +1,10 @@
 //
 //  CombineExt
 //  Borrowed from the CombineExt project and copied internally to avoid
-//  importing the whole of CombineExt if that is desired.
+//  importing the whole of CombineExt.
 //
 //  Copyright © 2020 Combine Community. All rights reserved.
+//  https://github.com/CombineCommunity/CombineExt
 //
 
 #if canImport(Combine)

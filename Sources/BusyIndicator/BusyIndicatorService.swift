@@ -16,6 +16,8 @@ public protocol BusyIndicatorServiceProtocol: AnyObject {
 }
 
 public class BusyIndicatorService: BusyIndicatorServiceProtocol {
+    let congifuration: BusyIndicatorConfiguration
+    
     private var _queue: CurrentValueSubject<Int, Never> = CurrentValueSubject(0)
     public var queue: AnyPublisher<Int, Never> { self._queue.eraseToAnyPublisher() }
 
@@ -27,7 +29,8 @@ public class BusyIndicatorService: BusyIndicatorServiceProtocol {
     
     private var cancelBag = Set<AnyCancellable>()
     
-    public init() {
+    public init(configuration: BusyIndicatorConfiguration = BusyIndicatorConfiguration()) {
+        self.congifuration = configuration
         bind()
     }
     
@@ -38,7 +41,6 @@ public class BusyIndicatorService: BusyIndicatorServiceProtocol {
             .receive(on: self.queueDispatchQueue)
             .withLatestFrom(queue)
             .map { $0 + 1 }
-            .print("## enqueue")
             .sink(receiveValue: {
                 queue.send($0)
             })
@@ -48,7 +50,6 @@ public class BusyIndicatorService: BusyIndicatorServiceProtocol {
             .receive(on: self.queueDispatchQueue)
             .withLatestFrom(queue)
             .map { max(0, $0 - 1) }
-            .print("## dequeue")
             .sink(receiveValue: {
                 queue.send($0)
             })
@@ -62,22 +63,20 @@ public class BusyIndicatorService: BusyIndicatorServiceProtocol {
     
     private func getIsBusyPublisher() -> AnyPublisher<Bool, Never> {
         let dispatchQueue = self.queueDispatchQueue
+        let config = self.congifuration
         return self._queue
-            .print("## queue")
             .receive(on: dispatchQueue)
             .flatMapLatest { queue -> AnyPublisher<Bool, Never> in
                 if queue == 0 {
-                    print("## busyIndicator false path")
                     return Just(false).eraseToAnyPublisher()
                 } else {
-                    print("## busyIndicator true path")
                     return Just(true)
-                        .delay(for: 0.85, scheduler: dispatchQueue)
+                        .delay(for: .milliseconds(config.showBusyIndicatorDelay), scheduler: RunLoop.main)
+                        .receive(on: dispatchQueue)
                         .eraseToAnyPublisher()
                 }
             }
             .removeDuplicates()
-            .print("## busyIndicator output")
             .eraseToAnyPublisher()
     }
 }
