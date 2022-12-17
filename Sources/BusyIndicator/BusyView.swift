@@ -23,6 +23,7 @@ public struct BusyView<Content>: View where Content : View {
             Color.clear.zIndex(0.0)
             if self.isBusy {
                 self.content()
+                    .transition(.opacity.animation(.easeInOut))
             }
         }
         .allowsHitTesting(self.isBusy)
@@ -105,15 +106,15 @@ private struct DefaultProgressView: View {
     var body: some View {
         if #available(iOS 15.0, *) {
             ZStack {
+                Rectangle()
                 ProgressView()
             }
             .background(.ultraThinMaterial)
-            .transition(.opacity.animation(.easeInOut))
         } else {
             ZStack {
+                Rectangle()
                 ProgressView()
             }
-            .transition(.opacity.animation(.easeInOut))
         }
     }
 }
