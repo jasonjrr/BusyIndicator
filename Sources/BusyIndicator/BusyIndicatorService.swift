@@ -35,23 +35,21 @@ public class BusyIndicatorService: BusyIndicatorServiceProtocol {
     }
     
     private func bind() {
-        let queue = self._queue
-        
         self._enqueue
             .receive(on: self.queueDispatchQueue)
-            .withLatestFrom(queue)
+            .withLatestFrom(self._queue)
             .map { $0 + 1 }
-            .sink(receiveValue: {
-                queue.send($0)
+            .sink(receiveValue: { [_queue] in
+                _queue.send($0)
             })
             .store(in: &self.cancelBag)
 
         self._dequeue
             .receive(on: self.queueDispatchQueue)
-            .withLatestFrom(queue)
+            .withLatestFrom(self._queue)
             .map { max(0, $0 - 1) }
-            .sink(receiveValue: {
-                queue.send($0)
+            .sink(receiveValue: { [_queue] in
+                _queue.send($0)
             })
             .store(in: &self.cancelBag)
     }
@@ -62,17 +60,14 @@ public class BusyIndicatorService: BusyIndicatorServiceProtocol {
     }
     
     private func getIsBusyPublisher() -> AnyPublisher<Bool, Never> {
-        let dispatchQueue = self.queueDispatchQueue
-        let config = self.congifuration
         return self._queue
-            .receive(on: dispatchQueue)
-            .flatMapLatest { queue -> AnyPublisher<Bool, Never> in
+            .receive(on: self.queueDispatchQueue)
+            .flatMapLatest { [congifuration, queueDispatchQueue] queue -> AnyPublisher<Bool, Never> in
                 if queue == 0 {
                     return Just(false).eraseToAnyPublisher()
                 } else {
                     return Just(true)
-                        .delay(for: .milliseconds(config.showBusyIndicatorDelay), scheduler: RunLoop.main)
-                        .receive(on: dispatchQueue)
+                        .delay(for: .milliseconds(congifuration.showBusyIndicatorDelay), scheduler: queueDispatchQueue)
                         .eraseToAnyPublisher()
                 }
             }
