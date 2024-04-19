@@ -16,7 +16,7 @@ public protocol BusyIndicatorServiceProtocol: AnyObject {
 }
 
 public class BusyIndicatorService: BusyIndicatorServiceProtocol {
-    let congifuration: BusyIndicatorConfiguration
+    let configuration: BusyIndicatorConfiguration
     
     private var _queue: CurrentValueSubject<Int, Never> = CurrentValueSubject(0)
     public var queue: AnyPublisher<Int, Never> { self._queue.eraseToAnyPublisher() }
@@ -30,28 +30,26 @@ public class BusyIndicatorService: BusyIndicatorServiceProtocol {
     private var cancelBag = Set<AnyCancellable>()
     
     public init(configuration: BusyIndicatorConfiguration = BusyIndicatorConfiguration()) {
-        self.congifuration = configuration
+        self.configuration = configuration
         bind()
     }
     
     private func bind() {
-        let queue = self._queue
-        
         self._enqueue
             .receive(on: self.queueDispatchQueue)
-            .withLatestFrom(queue)
+            .withLatestFrom(self._queue)
             .map { $0 + 1 }
-            .sink(receiveValue: {
-                queue.send($0)
+            .sink(receiveValue: { [_queue] in
+                _queue.send($0)
             })
             .store(in: &self.cancelBag)
 
         self._dequeue
             .receive(on: self.queueDispatchQueue)
-            .withLatestFrom(queue)
+            .withLatestFrom(self._queue)
             .map { max(0, $0 - 1) }
-            .sink(receiveValue: {
-                queue.send($0)
+            .sink(receiveValue: { [_queue] in
+                _queue.send($0)
             })
             .store(in: &self.cancelBag)
     }
@@ -62,17 +60,14 @@ public class BusyIndicatorService: BusyIndicatorServiceProtocol {
     }
     
     private func getIsBusyPublisher() -> AnyPublisher<Bool, Never> {
-        let dispatchQueue = self.queueDispatchQueue
-        let config = self.congifuration
         return self._queue
-            .receive(on: dispatchQueue)
-            .flatMapLatest { queue -> AnyPublisher<Bool, Never> in
+            .receive(on: self.queueDispatchQueue)
+            .flatMapLatest { [configuration, queueDispatchQueue] queue -> AnyPublisher<Bool, Never> in
                 if queue == 0 {
                     return Just(false).eraseToAnyPublisher()
                 } else {
                     return Just(true)
-                        .delay(for: .milliseconds(config.showBusyIndicatorDelay), scheduler: RunLoop.main)
-                        .receive(on: dispatchQueue)
+                        .delay(for: .milliseconds(configuration.showBusyIndicatorDelay), scheduler: queueDispatchQueue)
                         .eraseToAnyPublisher()
                 }
             }
