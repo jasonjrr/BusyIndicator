@@ -16,7 +16,7 @@ public protocol BusyIndicatorServiceProtocol: AnyObject {
 }
 
 public class BusyIndicatorService: BusyIndicatorServiceProtocol {
-    let congifuration: BusyIndicatorConfiguration
+    let configuration: BusyIndicatorConfiguration
     
     private var _queue: CurrentValueSubject<Int, Never> = CurrentValueSubject(0)
     public var queue: AnyPublisher<Int, Never> { self._queue.eraseToAnyPublisher() }
@@ -30,7 +30,7 @@ public class BusyIndicatorService: BusyIndicatorServiceProtocol {
     private var cancelBag = Set<AnyCancellable>()
     
     public init(configuration: BusyIndicatorConfiguration = BusyIndicatorConfiguration()) {
-        self.congifuration = configuration
+        self.configuration = configuration
         bind()
     }
     
@@ -62,12 +62,12 @@ public class BusyIndicatorService: BusyIndicatorServiceProtocol {
     private func getIsBusyPublisher() -> AnyPublisher<Bool, Never> {
         return self._queue
             .receive(on: self.queueDispatchQueue)
-            .flatMapLatest { [congifuration, queueDispatchQueue] queue -> AnyPublisher<Bool, Never> in
+            .flatMapLatest { [configuration, queueDispatchQueue] queue -> AnyPublisher<Bool, Never> in
                 if queue == 0 {
                     return Just(false).eraseToAnyPublisher()
                 } else {
                     return Just(true)
-                        .delay(for: .milliseconds(congifuration.showBusyIndicatorDelay), scheduler: queueDispatchQueue)
+                        .delay(for: .milliseconds(configuration.showBusyIndicatorDelay), scheduler: queueDispatchQueue)
                         .eraseToAnyPublisher()
                 }
             }
