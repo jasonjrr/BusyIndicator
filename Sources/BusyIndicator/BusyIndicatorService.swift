@@ -9,9 +9,18 @@ import Foundation
 import Combine
 import SwiftUI
 
+/// A protocol defining the behavior of a service responsible for managing busy indicators.
 public protocol BusyIndicatorServiceProtocol: AnyObject {
+    
+    /// A publisher that emits the current queue size for the number of active `BusySubject`s.
     var queue: AnyPublisher<Int, Never> { get }
+    
+    /// The busy indicator object used to display loading states.
     var busyIndicator: BusyIndicator { get }
+    
+    /// Enqueues a task and returns a subject to manage its busy indicator state.
+    ///
+    /// - Returns: A `BusySubject` object to manage the busy indicator state of the enqueued task.
     func enqueue() -> BusySubject
 }
 

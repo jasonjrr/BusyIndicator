@@ -17,7 +17,14 @@ extension EnvironmentValues {
     }
 }
 
+/// An extension on `View` that allows setting a busy indicator in the `Environment`.
 extension View {
+    
+    /// Sets the busy indicator for the view.
+    ///
+    /// - Parameters:
+    ///   - busyIndicator: The `BusyIndicator` to be displayed.
+    /// - Returns: A modified view with the specified `BusyIndicator`.
     @inlinable
     public func busyIndicator(_ busyIndicator: BusyIndicator) -> some View {
         environment(\.busyIndicator, busyIndicator)
