@@ -160,20 +160,3 @@ extension View {
         }
     }
 }
-
-private struct DefaultProgressView: View {
-    var body: some View {
-        if #available(iOS 15.0, *) {
-            ZStack {
-                Color.clear
-                ProgressView()
-            }
-            .background(.ultraThinMaterial)
-        } else {
-            ZStack {
-                Color.clear
-                ProgressView()
-            }
-        }
-    }
-}
