@@ -32,7 +32,7 @@ public protocol BusyIndicatorServiceProtocol: AnyObject {
 public class BusyIndicatorService: BusyIndicatorServiceProtocol {
     let configuration: BusyIndicatorConfiguration
     
-    private let _queue: CurrentValueSubject<[String: WeakBox<BusySubject>], Never> = CurrentValueSubject([:])
+    private let _queue: CurrentValueSubject<[String: Int], Never> = CurrentValueSubject([:])
     public var queueCount: AnyPublisher<Int, Never> {
         self._queue
             .map { $0.count }
@@ -62,8 +62,8 @@ public class BusyIndicatorService: BusyIndicatorServiceProtocol {
             .withLatestFrom(self._queue) { ($0, $1) }
             .map { newSubject, queue in
                 var queue = queue
-                queue[newSubject.identifier]?.value?.markDequeued()
-                queue[newSubject.identifier] = WeakBox(newSubject)
+                let count: Int = queue[newSubject.identifier] ?? 0
+                queue[newSubject.identifier] = count + 1
                 return queue
             }
             .sink(receiveValue: { [_queue] in
@@ -76,8 +76,13 @@ public class BusyIndicatorService: BusyIndicatorServiceProtocol {
             .withLatestFrom(self._queue) { ($0, $1) }
             .map { identifierToRemove, queue in
                 var queue = queue
-                queue[identifierToRemove] = nil
-                return queue.filter { $0.value.value != nil }
+                let count: Int = queue[identifierToRemove] ?? 0
+                if count <= 1 {
+                    queue[identifierToRemove] = nil
+                } else {
+                    queue[identifierToRemove] = count - 1
+                }
+                return queue
             }
             .sink(receiveValue: { [_queue] in
                 _queue.send($0)
@@ -116,7 +121,13 @@ public class BusyIndicatorService: BusyIndicatorServiceProtocol {
     private func getIsBusyPublisher(for identifier: String) -> AnyPublisher<Bool, Never> {
         self._queue
             .receive(on: self.queueDispatchQueue)
-            .map { $0[identifier]?.value != nil }
+            .map {
+                if let count: Int = $0[identifier] {
+                    return count > 0
+                } else {
+                    return false
+                }
+            }
             .eraseToAnyPublisher()
     }
 }
@@ -125,14 +136,5 @@ public class BusyIndicatorService: BusyIndicatorServiceProtocol {
 extension BusyIndicatorService: BusySubjectDelegate {
     func busySubjectDidDequeue(_ source: BusySubject, for identifier: String) {
         self._dequeue.send(identifier)
-    }
-}
-
-// MARK: WeakBox
-private class WeakBox<T: AnyObject> {
-    weak var value: T?
-    
-    init(_ value: T) {
-        self.value = value
     }
 }
