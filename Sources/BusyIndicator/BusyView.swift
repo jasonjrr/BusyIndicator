@@ -23,9 +23,10 @@ public struct BusyView<Content>: View where Content : View {
             Color.clear.zIndex(0.0)
             if self.isBusy {
                 self.content()
-                    .transition(.opacity.animation(.easeInOut))
+                    .transition(.opacity)
             }
         }
+        .animation(.easeInOut, value: self.isBusy)
         .allowsHitTesting(self.isBusy)
         .onReceive(self.busyIndicator.busy.receive(on: DispatchQueue.main)) { isBusy in
             self.isBusy = isBusy
