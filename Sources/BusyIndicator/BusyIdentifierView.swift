@@ -12,20 +12,20 @@ public struct BusyIdentifierView<Content>: View where Content : View {
     @Environment(\.busyIndicator) var busyIndicator: BusyIndicator
     
     private let identifier: String
-    private let content: () -> Content
+    private let content: Content
     
     @State private var isBusy: Bool = false
     
-    init(_ identifier: String, @ViewBuilder content: @escaping () -> Content) {
+    init(_ identifier: String, @ViewBuilder content: () -> Content) {
         self.identifier = identifier
-        self.content = content
+        self.content = content()
     }
     
     public var body: some View {
         ZStack(alignment: .center) {
             Color.clear.zIndex(0.0)
             if self.isBusy {
-                self.content()
+                self.content
                     .transition(.opacity)
             }
         }
@@ -59,7 +59,7 @@ extension View {
     ///   - content: The view to layer in front of the modified view.
     ///
     /// - Returns: A view that layers `content` in front of the modified view.
-    public func busyOverlay<Content>(identifier: String, edgesIgnoringSafeArea edges: Edge.Set = .all, @ViewBuilder content: @escaping () -> Content) -> some View where Content : View {
+    public func busyOverlay<Content>(identifier: String, edgesIgnoringSafeArea edges: Edge.Set = .all, @ViewBuilder content: () -> Content) -> some View where Content : View {
         self.overlay(
             BusyIdentifierView(identifier) {
                 content()
